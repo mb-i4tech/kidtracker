@@ -35,10 +35,19 @@ const TIME_AXIS_DISPLAY_FORMAT = {
 };
 const ERROR_MESSAGE_TIME_FORMAT = 'D MMMM YYYY HH:mm';
 
+function getGijgoLocale() {
+    const locale = i18n.locale.toLowerCase();
+    const messages = window.gj && gj.core ? gj.core.messages : null;
+    if (messages && messages[locale]) {
+        return locale;
+    }
+    return 'ru-ru';
+}
+
 function initHistory() {
 
     $('#history-start').datetimepicker({
-        locale: i18n.locale.toLowerCase(),
+        locale: getGijgoLocale(),
         format: 'dd/mm/yyyy HH:MM',
         footer: true,
         modal: true,
@@ -57,7 +66,7 @@ function initHistory() {
     });
 
     $('#history-end').datetimepicker({
-        locale: i18n.locale.toLowerCase(),
+        locale: getGijgoLocale(),
         format: 'dd/mm/yyyy HH:MM',
         footer: true,
         modal: true,
