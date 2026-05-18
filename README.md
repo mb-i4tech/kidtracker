@@ -69,6 +69,7 @@ KIDTRACKER_IP=your.public.ip.address
 POSTGRES_PASSWORD=replace-with-a-long-random-password
 KIDTRACKER_ADMIN_USERNAME=admin
 KIDTRACKER_ADMIN_PASSWORD=replace-this-password
+SERVER_FORWARD_HEADERS_STRATEGY=framework
 TZ=Europe/Moscow
 ```
 
