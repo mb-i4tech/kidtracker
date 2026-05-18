@@ -1,0 +1,20 @@
+{
+    layer4 {
+        :8001 {
+            route {
+                proxy {
+                    # If Caddy and KidTracker are in the same Docker network, use the app service name.
+                    upstream kidtracker-app:8001
+
+                    # If KidTracker publishes 8001 on the Docker host instead, use this instead:
+                    # upstream host.docker.internal:8001
+                }
+            }
+        }
+    }
+}
+
+# Regular HTTPS reverse proxy for the web UI can stay outside the global block, for example:
+# kidtracker.example.com {
+#     reverse_proxy kidtracker-app:8003
+# }

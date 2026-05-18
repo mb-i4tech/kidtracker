@@ -74,6 +74,18 @@ TZ=Europe/Moscow
 
 Expose ports `8001`, `8002`, and `8003` on the host. Port `8001` must be reachable by the watches, and the web UI is available at `https://<hostname>:8003`. The Portainer stack uses named Docker volumes for PostgreSQL data, logs, and media.
 
+### Caddy TCP proxy for watches
+
+Watches connect with a raw TCP protocol, not HTTP/HTTPS. If you want Caddy to proxy watch traffic on port `8001`, use a Caddy build with the layer4 plugin. This repo includes `caddy-l4/Dockerfile` and `caddy-l4/Caddyfile.example`.
+
+Prebuilt image:
+
+```text
+raregoat8804/caddy-l4:latest
+```
+
+Your Caddy container must publish TCP port `8001`, and your Caddyfile needs a layer4 route to the KidTracker app on port `8001`.
+
 ### Choose the database and start the application
 
 The application can be backed by different databases, on your choice. The most lightweight 
