@@ -7,7 +7,7 @@ version: "3.8"
 
 services:
   app:
-    image: ${KIDTRACKER_IMAGE:-raregoat8804/kidtracker:2.1.0}
+    image: ${KIDTRACKER_IMAGE:-raregoat8804/kidtracker:2.1.1}
     restart: unless-stopped
     depends_on:
       - postgres
