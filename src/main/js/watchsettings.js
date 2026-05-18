@@ -17,6 +17,7 @@
 'use strict';
 
 const i18n = require('./i18n.js');
+const getGijgoLocale = require('./gijgo-locale.js');
 const moment = require('moment/min/moment-with-locales.min.js');
 const {showWarning, showError} = require('./notification.js');
 const {showInputToken, fetchWithRedirect, initCommand, initConfig, initCheck} = require('./util.js');
@@ -48,7 +49,7 @@ function initWatchSettings() {
     $('#kid-settings-worktime-input').inputSpinner();
 
     $('#kid-settings-datetime').datetimepicker({
-        locale: i18n.locale.toLowerCase(),
+        locale: getGijgoLocale(),
         format: 'dd/mm/yyyy HH:MM',
         footer: true,
         modal: true,
@@ -98,7 +99,7 @@ function initReminder($reminder) {
     })
 
     $time.timepicker({
-        locale: i18n.locale.toLowerCase(),
+        locale: getGijgoLocale(),
         format: 'HH:MM',
         mode: '24hr',
         footer: true,

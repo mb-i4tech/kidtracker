@@ -59,7 +59,7 @@ For repository deploys, choose **Stacks** → **Add stack** → **Repository**, 
 docker-compose.portainer.yml
 ```
 
-For upload deploys, upload `docker-compose.portainer-upload.yml` in Portainer. By default it uses the prebuilt Docker Hub image `raregoat8804/kidtracker:2.1.2`. To override it, set `KIDTRACKER_IMAGE` to another image name.
+For upload deploys, upload `docker-compose.portainer-upload.yml` in Portainer. By default it uses the prebuilt Docker Hub image `raregoat8804/kidtracker:2.1.3`. To override it, set `KIDTRACKER_IMAGE` to another image name.
 
 Recommended stack environment variables:
 

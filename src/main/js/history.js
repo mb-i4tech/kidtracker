@@ -20,6 +20,7 @@ require('./jquery-ui-custom.js')
 
 const moment = require('moment/min/moment-with-locales.min.js');
 const i18n = require('./i18n.js');
+const getGijgoLocale = require('./gijgo-locale.js');
 require('chart.js/dist/Chart.min.js');
 const {showWarning, showError} = require('./notification.js');
 const {showInputToken, fetchWithRedirect, initCommand, initConfig, initCheck} = require('./util.js');
@@ -34,15 +35,6 @@ const TIME_AXIS_DISPLAY_FORMAT = {
     hour: 'HH:mm'
 };
 const ERROR_MESSAGE_TIME_FORMAT = 'D MMMM YYYY HH:mm';
-
-function getGijgoLocale() {
-    const locale = i18n.locale.toLowerCase();
-    const messages = window.gj && gj.core ? gj.core.messages : null;
-    if (messages && messages[locale]) {
-        return locale;
-    }
-    return 'ru-ru';
-}
 
 function initHistory() {
 
