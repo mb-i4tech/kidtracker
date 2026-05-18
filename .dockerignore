@@ -1,0 +1,9 @@
+.git
+.m2
+node_modules
+target
+data
+logs
+media
+pgdata
+*.log

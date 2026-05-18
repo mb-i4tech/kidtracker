@@ -1,0 +1,38 @@
+FROM maven:3.8.8-eclipse-temurin-8 AS build
+
+RUN apt-get update \
+    && apt-get -y install nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+COPY pom.xml package.json ./
+COPY src ./src
+
+ARG DOMAIN=localhost
+ARG IP=127.0.0.1
+
+RUN rm -f src/main/resources/kidtracker.p12 \
+    && keytool -genkeypair \
+      -keystore src/main/resources/kidtracker.p12 \
+      -storetype PKCS12 \
+      -storepass 12345678 \
+      -alias kidtracker \
+      -keyalg RSA \
+      -keysize 2048 \
+      -validity 99999 \
+      -dname "CN=Kidtracker SSL Certificate, OU=Kidtracker, O=Kidtracker, C=SA" \
+      -ext san=dns:${DOMAIN},ip:${IP} \
+    && npm install \
+    && mvn clean package -P with-frontend -Dmaven.test.skip=true
+
+FROM eclipse-temurin:8-jre
+
+RUN mkdir -p /app/data /app/logs /app/media
+
+WORKDIR /app
+COPY --from=build /build/target/kidtracker*.jar /app/kidtracker.jar
+
+EXPOSE 8001 8002 8003
+
+CMD ["java", "-jar", "kidtracker.jar"]

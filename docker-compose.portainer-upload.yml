@@ -1,0 +1,47 @@
+version: "3.8"
+
+# Portainer "Upload" stack file.
+# This file is intentionally self-contained and does not use `build:` because
+# Portainer uploads only the compose file, not this repository/Dockerfile.
+# Uses the prebuilt image published on Docker Hub.
+
+services:
+  app:
+    image: ${KIDTRACKER_IMAGE:-raregoat8804/kidtracker:2.1.0}
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "8001:8001"
+      - "8002:8002"
+      - "8003:8003"
+    volumes:
+      - kidtracker_logs:/app/logs
+      - kidtracker_media:/app/media
+    environment:
+      TZ: ${TZ:-Europe/Moscow}
+      KIDTRACKER_ADMIN_USERNAME: ${KIDTRACKER_ADMIN_USERNAME:-admin}
+      KIDTRACKER_ADMIN_PASSWORD: ${KIDTRACKER_ADMIN_PASSWORD:-password}
+      KIDTRACKER_SERVER_DEBUG_START: ${KIDTRACKER_SERVER_DEBUG_START:-true}
+      SPRING_JPA_DATABASE: POSTGRESQL
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL10Dialect
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kidtracker
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_DATASOURCE_USERNAME: kidtracker
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-change-this-password}
+
+  postgres:
+    image: postgres:13-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kidtracker
+      POSTGRES_USER: kidtracker
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - kidtracker_pgdata:/var/lib/postgresql/data/pgdata
+
+volumes:
+  kidtracker_pgdata:
+  kidtracker_logs:
+  kidtracker_media:

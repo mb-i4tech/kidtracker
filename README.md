@@ -46,6 +46,34 @@ to specify a domain and/or an ip address using environment variables `DOMAIN` an
 docker compose -f docker-builder.yml run --rm -e DOMAIN=example.com -e IP=123.45.67.89 builder
 ```
 
+### Deploy with Portainer
+
+Two Portainer stack files are provided:
+
+* `docker-compose.portainer.yml` — use this when Portainer can deploy from this Git repository. It builds the app from source.
+* `docker-compose.portainer-upload.yml` — use this with Portainer's **Upload**/**Web editor** option. It references a prebuilt image because uploading a stack file does not upload the project source or Dockerfile.
+
+For repository deploys, choose **Stacks** → **Add stack** → **Repository**, point it at this repository, and set the compose path to:
+
+```text
+docker-compose.portainer.yml
+```
+
+For upload deploys, upload `docker-compose.portainer-upload.yml` in Portainer. By default it uses the prebuilt Docker Hub image `raregoat8804/kidtracker:2.1.0`. To override it, set `KIDTRACKER_IMAGE` to another image name.
+
+Recommended stack environment variables:
+
+```env
+KIDTRACKER_DOMAIN=your.domain.name
+KIDTRACKER_IP=your.public.ip.address
+POSTGRES_PASSWORD=replace-with-a-long-random-password
+KIDTRACKER_ADMIN_USERNAME=admin
+KIDTRACKER_ADMIN_PASSWORD=replace-this-password
+TZ=Europe/Moscow
+```
+
+Expose ports `8001`, `8002`, and `8003` on the host. Port `8001` must be reachable by the watches, and the web UI is available at `https://<hostname>:8003`. The Portainer stack uses named Docker volumes for PostgreSQL data, logs, and media.
+
 ### Choose the database and start the application
 
 The application can be backed by different databases, on your choice. The most lightweight 
