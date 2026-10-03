@@ -6,10 +6,10 @@ permissions:
   contents: read
 jobs:
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22.14.0'
           cache: npm
@@ -19,7 +19,7 @@ jobs:
       - run: npm run test:browser
       - run: npm audit --omit=dev --audit-level=high
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:18-alpine
@@ -35,18 +35,18 @@ jobs:
     env:
       KIDTRACKER_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/kidtracker_test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
       - run: mvn -B verify
   isolated-browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22.14.0'
           cache: npm
@@ -55,9 +55,9 @@ jobs:
       - run: docker build -f Dockerfile.product -t kidtracker:ci .
       - run: scripts/test-backend-browser.sh kidtracker:ci
   populated-upgrade:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - run: scripts/test-postgres-upgrade.sh
