@@ -25,7 +25,6 @@ import ru.mecotrade.kidtracker.device.DeviceServer;
 import ru.mecotrade.kidtracker.device.MessageConnectorFactory;
 
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 @Configuration
 @EnableTransactionManagement
@@ -45,12 +44,15 @@ public class KidTrackerConfig {
 
     @Bean
     public Executor deviceListenerExecutor() {
-        return Executors.newCachedThreadPool();
+        return new java.util.concurrent.ThreadPoolExecutor(0, 128, 60,
+                java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.SynchronousQueue<>());
     }
 
     @Bean
     public Executor notificationExecutor() {
-        return Executors.newCachedThreadPool();
+        return new java.util.concurrent.ThreadPoolExecutor(2, 8, 60,
+                java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.ArrayBlockingQueue<>(128),
+                new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     @Bean

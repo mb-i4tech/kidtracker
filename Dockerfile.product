@@ -4,6 +4,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY .eslintrc.json ./
 COPY src/main/js ./src/main/js
+COPY scripts/vendor-assets.cjs ./scripts/vendor-assets.cjs
 RUN mkdir -p src/main/resources/static/js && npm run lint && npm run build
 
 FROM maven:3.9.11-eclipse-temurin-21 AS backend
@@ -11,6 +12,7 @@ WORKDIR /build
 COPY pom.xml ./
 COPY src ./src
 COPY --from=frontend /build/src/main/resources/static/js/index.js ./src/main/resources/static/js/index.js
+COPY --from=frontend /build/src/main/resources/static/vendor ./src/main/resources/static/vendor
 RUN mvn -B verify
 
 FROM eclipse-temurin:21-jre-jammy

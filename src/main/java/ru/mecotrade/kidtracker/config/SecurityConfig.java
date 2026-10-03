@@ -32,6 +32,8 @@ public class SecurityConfig {
                 .exceptionHandling(errors -> errors
                         .defaultAuthenticationEntryPointFor((req, res, ex) -> res.sendError(401),
                                 new AntPathRequestMatcher("/api/**")))
+                .addFilterBefore(new ru.mecotrade.kidtracker.security.LoginAttemptFilter(),
+                        org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new UserDeviceFilter(), AuthorizationFilter.class)
                 .formLogin(form -> form.defaultSuccessUrl("/", true).permitAll())
                 .logout(logout -> logout.permitAll())

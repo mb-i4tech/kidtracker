@@ -14,5 +14,8 @@ c.module.exports({subscribe:()=>({unsubscribe(){}}),send(){},userId:'fixture'});
 await new Promise(r=>setTimeout(r,30));assert(w.document.querySelector('#show-user-devices').classList.contains('show'));
 w.jQuery('#user-devices-add').trigger('click');await new Promise(r=>setTimeout(r,30));
 assert(w.document.querySelector('#edit-device').classList.contains('show'),'Add dialog visible '+language);assert(!w.document.querySelector('#device-deviceid').disabled);assert(w.document.querySelector('#edit-device .alert-info').textContent.includes('123456'));
+assert(w.document.querySelector('#device-deviceid').getAttribute('inputmode')==='numeric');
+assert(w.document.querySelector('#input-token-input').getAttribute('maxlength')==='6');
+if(language==='lt-LT') assert(w.document.querySelector('#edit-device-add').textContent==='Gauti patvirtinimo kodą');
 console.log('PASS actual Bootstrap My kids → + opens editable dialog:',language);w.close();
 }})().catch(e=>{console.error(e);process.exitCode=1});

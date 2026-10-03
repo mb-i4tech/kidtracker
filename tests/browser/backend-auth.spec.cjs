@@ -3,6 +3,8 @@ const base=process.env.KIDTRACKER_TEST_BASE_URL;
 test.skip(!base,'Requires explicitly started isolated synthetic backend');
 test('real backend login, CSRF, admin creation and authorization negatives',async({page,browser})=>{
   const username=process.env.KIDTRACKER_TEST_ADMIN||'synthetic-admin';
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.route('**/*',route=>new URL(route.request().url()).origin===new URL(base).origin?route.continue():route.abort());
   const password=process.env.KIDTRACKER_TEST_PASSWORD||'synthetic-test-only-password';
   await page.goto(`${base}/login`);
   await page.locator('input[name=username]').fill(username);
@@ -29,6 +31,12 @@ test('real backend login, CSRF, admin creation and authorization negatives',asyn
     return {without:without.status,withToken:withToken.status,legacy:legacy.status,created:created.status};
   });
   expect(result.without).toBe(403);expect(result.withToken).toBe(204);expect(result.legacy).toBe(405);expect([200,201,204]).toContain(result.created);
+  await page.reload();
+  await page.click('#user-devices');
+  await expect(page.locator('#show-user-devices')).toBeVisible();
+  await page.click('#user-devices-add');
+  await expect(page.locator('#edit-device')).toBeVisible();
+  expect(errors).toEqual([]);
   const other=await browser.newContext();const parent=await other.newPage();
   await parent.goto(`${base}/login`);await parent.locator('input[name=username]').fill('synthetic-parent');await parent.locator('input[name=password]').fill('synthetic-parent-password');await Promise.all([parent.waitForURL(`${base}/`),parent.locator('button[type=submit]').click()]);
   const denied=await parent.evaluate(async()=>{const c=await fetch('/api/csrf').then(r=>r.json());return {admin:(await fetch('/api/admin/user',{method:'POST',headers:{'Content-Type':'application/json',[c.headerName]:c.token},body:'{}'})).status,device:(await fetch('/api/device/unowned/config')).status};});

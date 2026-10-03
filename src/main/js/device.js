@@ -149,12 +149,25 @@ async function editDevice(kid) {
 
     const $info = $('div.alert-info', $editModal);
 
+    const $status = $('#edit-device-status');
+    const $copy = $('#edit-device-copy');
+    let smsText = '';
+    let busy = false;
     const create = !kid;
+    $editModal.toggleClass('onboarding-create', create);
+    $('.onboarding-only', $editModal).toggle(create);
+    $status.text('');
+    $copy.hide();
+    $add.text(i18n.translate('Request confirmation code'));
+    $close.attr('aria-label', i18n.translate('Cancel'));
+    $('.modal-title', $editModal).text(i18n.translate(create ? 'Add a child’s watch' : 'Edit'));
     if (create) {
         kid = {};
         const serverConfig = await fetchWithRedirect('/api/user/config');
-        if (serverConfig && serverConfig.publicHost && serverConfig.publicPort) {
-            const $sms = $('<span>').addClass('user-add-device-sms').text(`pw,123456,ip,${serverConfig.publicHost},${serverConfig.publicPort}#`);
+        if (serverConfig && isPublicEndpoint(serverConfig.publicHost, serverConfig.publicPort)) {
+            smsText = `pw,123456,ip,${serverConfig.publicHost},${serverConfig.publicPort}#`;
+            $copy.show();
+            const $sms = $('<span>').addClass('user-add-device-sms').text(smsText);
             const $password = $('<span>').addClass('user-add-device-sms').text('123456');
             $info.html(i18n.format('Send text message to the device {}If the device password was changed, put it instead of {}', ['<br>'+$sms[0].outerHTML+'<br>', $password[0].outerHTML]));
         } else {
@@ -203,6 +216,8 @@ async function editDevice(kid) {
     }
 
     render();
+    // Localize only leaf text nodes; do not destroy controls or nested markup.
+    $editModal.find('label[for], small, p.onboarding-only, .onboarding-steps li, #edit-device-copy').each(function () { i18n.apply($(this)); });
 
     return new Promise(resolve => {
 
@@ -214,6 +229,7 @@ async function editDevice(kid) {
             $upload.off('click');
             $add.off('click');
             $close.off('click');
+            $copy.off('click');
 
             $editModal.modal('hide');
             resolve(null);
@@ -258,26 +274,43 @@ async function editDevice(kid) {
                     });
                 }
             });
-            $add.click(async () => {
-                if (!$name.val()) {
-                    showError(i18n.translate('Name should not be empty.'))
-                } else if (!$deviceId.val()) {
-                    showError(i18n.translate('Device identifier should not be empty.'))
-                } else {
-                    kid.deviceId = $deviceId.val();
-                    kid.name = $name.val();
-                    await fetchWithRedirect('/api/user/kid', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(kid)
-                    },
-                    {
-                        error: message => {
-                            showError(i18n.translate(message || 'Command is not completed'));
-                        },
-                        success: hide
-                    });
+            $copy.off('click').on('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(smsText);
+                    $status.text(i18n.translate('SMS text copied. Send it yourself to the watch SIM number.'));
+                } catch (e) {
+                    $status.text(i18n.translate('Copy is unavailable. Select and copy the SMS text above.'));
                 }
+            });
+            $add.click(async () => {
+                if (busy) return;
+                const name = $name.val().trim();
+                const deviceId = $deviceId.val().trim();
+                $name.attr('aria-invalid', !name);
+                $deviceId.attr('aria-invalid', !/^[0-9]{5,20}$/.test(deviceId));
+                if (!name) {
+                    $status.text(i18n.translate('Name should not be empty.')); $name.trigger('focus'); return;
+                }
+                if (!/^[0-9]{5,20}$/.test(deviceId)) {
+                    $status.text(i18n.translate('Enter the numeric device ID (5–20 digits) printed on the watch or its label, not the SIM phone number.'));
+                    $deviceId.trigger('focus'); return;
+                }
+                kid.deviceId = deviceId; kid.name = name;
+                const request = {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(kid)};
+                busy = true; $add.prop('disabled', true); $close.prop('disabled', true);
+                $status.text(i18n.translate('Sending request to the server. Watch connection is not yet confirmed.'));
+                await fetchWithRedirect('/api/user/kid', request, {
+                    error: () => $status.text(i18n.translate('Request failed. Check the watch power, SIM data and server settings, then retry. Your entries are saved.')),
+                    accepted: () => $status.text(i18n.translate('Request accepted. Confirmation is still required.')),
+                    resend: error => fetchWithRedirect('/api/user/kid', request, {skipToken: true, error}),
+                    success: async () => {
+                        // Token execution must also be reflected in the authenticated assignment list.
+                        const kids = await fetchWithRedirect('/api/user/kids/info');
+                        if (Array.isArray(kids) && kids.some(k => String(k.deviceId) === deviceId)) hide();
+                        else $status.text(i18n.translate('Assignment is not confirmed yet. Reopen the child list to check before requesting another code.'));
+                    }
+                });
+                busy = false; $add.prop('disabled', false); $close.prop('disabled', false);
             });
             $close.click(() => {
                 hide();
@@ -293,4 +326,15 @@ async function editDevice(kid) {
     });
 }
 
+// Reject LAN/loopback literals and local hostnames; never derive SMS from window.location.
+function isPublicEndpoint(host, port) {
+    if (typeof host !== 'string' || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) return false;
+    if (!/^[a-z0-9.-]+$/i.test(host) || !host.includes('.') || /(?:\.local|\.localhost|\.internal|\.lan|\.home)$/i.test(host)) return false;
+    if (/^[0-9.]+$/.test(host)) {
+        const p = host.split('.').map(Number);
+        if (p.length !== 4 || p.some(n => n < 0 || n > 255)) return false;
+        if ([0,10,127].includes(p[0]) || p[0] >= 224 || (p[0] === 192 && p[1] === 168) || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) || (p[0] === 169 && p[1] === 254) || (p[0] === 100 && p[1] >= 64 && p[1] <= 127)) return false;
+    }
+    return true;
+}
 module.exports = showDevice;

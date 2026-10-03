@@ -60,6 +60,23 @@ class SessionSecurityIntegrationTest {
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/"));
         return csrf(initial.session());
     }
+    @Test void generatedLoginThrottleRetainsSessionsAndCsrf() throws Exception {
+        Session logged = login("existing-session");
+        MvcResult page = mvc.perform(get("/login")).andExpect(status().isOk()).andReturn();
+        org.junit.jupiter.api.Assertions.assertTrue(page.getResponse().getContentAsString().contains("_csrf"));
+        Session attempt = csrf(new MockHttpSession());
+        for (int i = 0; i < 10; i++) {
+            mvc.perform(post("/login").servletPath("/login").session(attempt.session())
+                    .header(attempt.header(), attempt.token()).param("username", "throttled-user")
+                    .param("password", "wrong")).andExpect(status().is3xxRedirection());
+        }
+        mvc.perform(post("/login").servletPath("/login").session(attempt.session())
+                .header(attempt.header(), attempt.token()).param("username", " throttled-user ")
+                .param("password", "test-password"))
+                .andExpect(status().isTooManyRequests()).andExpect(header().exists("Retry-After"));
+        mvc.perform(get("/api/user/info").session(logged.session())).andExpect(status().isOk());
+        mvc.perform(get("/login")).andExpect(status().isOk());
+    }
     @Test void loginRequiresValidCsrfAndApiNeverRedirects() throws Exception {
         mvc.perform(get("/api/user/info")).andExpect(status().isUnauthorized());
         mvc.perform(post("/login").param("username", "u").param("password", "test-password"))

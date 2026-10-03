@@ -299,3 +299,24 @@ span.user-add-device-sms {
 div.alert-info.alert-center {
     text-align: center;
 }
+/* Guided watch onboarding: long SMS text must fit small screens. */
+#edit-device .form-group { width: 100%; }
+#edit-device .user-add-device-sms { overflow-wrap: anywhere; user-select: all; }
+#edit-device-status, #input-token-status { margin-top: 1rem; overflow-wrap: anywhere; }
+#input-token-input { font-size: 1.5rem; letter-spacing: .18em; }
+#edit-device button, #input-token button { min-height: 44px; }
+#edit-device input[aria-invalid="true"], #input-token input[aria-invalid="true"] { border: 2px solid #b42318; }
+.onboarding-steps { padding-left: 1.4rem; text-align: left; }
+@media (max-width: 575px) {
+    #edit-device .modal-dialog, #input-token .modal-dialog { margin: .4rem; max-width: calc(100% - .8rem); }
+    #edit-device .modal-body .modal-body { padding: .25rem; }
+    #input-token .form-group { width: 100%; }
+    #input-token .modal-footer { flex-wrap: wrap; }
+}
+
+#edit-device.onboarding-create .thumb-row,
+#edit-device.onboarding-create #edit-device-add-thumb,
+#edit-device.onboarding-create #edit-device-remove-thumb { display: none !important; }
+#edit-device.onboarding-create .modal-body > .modal-body { display: flex; flex-direction: column; gap: .35rem; }
+#edit-device.onboarding-create .onboarding-steps { font-size: .85rem; color: #475569; margin-bottom: .25rem; }
+#edit-device.onboarding-create .modal-footer { position: sticky; bottom: 0; background: white; z-index: 2; }

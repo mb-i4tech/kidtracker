@@ -15,7 +15,6 @@
  */
 package ru.mecotrade.kidtracker.processor;
 
-import com.google.common.primitives.Bytes;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,10 +24,6 @@ import ru.mecotrade.kidtracker.dao.model.Media;
 import ru.mecotrade.kidtracker.dao.model.Message;
 import ru.mecotrade.kidtracker.model.ChatMessage;
 import ru.mecotrade.kidtracker.util.MessageUtils;
-import ws.schild.jave.encode.AudioAttributes;
-import ws.schild.jave.Encoder;
-import ws.schild.jave.encode.EncodingAttributes;
-import ws.schild.jave.MultimediaObject;
 
 import java.util.HexFormat;
 import java.io.File;
@@ -72,36 +67,24 @@ public class MediaProcessor {
 
     private final File workspace;
 
-    private final EncodingAttributes encodingAttributes;
-
+    private final String codec, format;
+    private final int bitrate, samplingRate;
     private final String audioContentType;
+    static final int MAX_MEDIA_BYTES = 0xffff;
 
     public static byte[] toMediaBytes(byte[] payload) {
-
-        byte[] result = new byte[0];
-
-        int left = 0;
-        boolean escaped = false;
+        if (payload.length > MAX_MEDIA_BYTES) throw new IllegalArgumentException("Media too large");
+        java.io.ByteArrayOutputStream result = new java.io.ByteArrayOutputStream(payload.length);
         for (int i = 0; i < payload.length; i++) {
-            if (escaped) {
-                byte[] replacement = MEDIA_MAPPING.get(payload[i]);
-                if (replacement != null) {
-                    result = Bytes.concat(result, Arrays.copyOfRange(payload, left, i - 1), replacement);
-                    left = i + 1;
-                }
-                escaped = false;
-            } else {
-                if (payload[i] == MEDIA_ESCAPE) {
-                    escaped = true;
-                }
+            if (payload[i] == MEDIA_ESCAPE && i + 1 < payload.length) {
+                byte[] replacement = MEDIA_MAPPING.get(payload[i + 1]);
+                if (replacement != null) { result.write(replacement[0]); i++; continue; }
+                // Preserve unknown escape pairs exactly, as the original watch decoder did.
+                result.write(payload[i++]);
             }
+            result.write(payload[i]);
         }
-
-        if (left < payload.length) {
-            result = Bytes.concat(result, Arrays.copyOfRange(payload, left, payload.length));
-        }
-
-        return result;
+        return result.toByteArray();
     }
 
     public static String toContentType(String magic) {
@@ -132,15 +115,10 @@ public class MediaProcessor {
             log.info("Media workspace folder {} was created", workspace);
         }
 
-        AudioAttributes audio = new AudioAttributes();
-        audio.setCodec(codec);
-        audio.setBitRate(bitrate);
-        audio.setChannels(1);
-        audio.setSamplingRate(samplingRate);
-
-        encodingAttributes = new EncodingAttributes();
-        encodingAttributes.setOutputFormat(format);
-        encodingAttributes.setAudioAttributes(audio);
+        this.codec = codec;
+        this.bitrate = bitrate;
+        this.samplingRate = samplingRate;
+        this.format = format;
 
         this.audioContentType = audioContentType;
     }
@@ -150,41 +128,40 @@ public class MediaProcessor {
         Media media = null;
 
         if (message.getPayload() != null) {
+            if (MessageUtils.MEDIA_TYPES.contains(message.getType())
+                    && message.getPayload().length() > ((MAX_MEDIA_BYTES + 2) / 3) * 4) return null;
 
             if (MessageUtils.AUDIO_TYPES.contains(message.getType())) {
 
+                java.nio.file.Path source = null, target = null;
                 try {
-                    File source = new File(workspace, message.getId() + ".amr");
-                    File target = new File(workspace, message.getId() + ".mp3");
-
-                    Files.write(source.toPath(), toMediaBytes(Base64.getDecoder().decode(message.getPayload().getBytes())));
-
-                    //Encode
-                    Encoder encoder = new Encoder();
-                    encoder.encode(new MultimediaObject(source), target, encodingAttributes);
-
-                    media = mediaService.save(Media.builder()
-                            .message(message)
-                            .type(Media.Type.AUDIO)
-                            .contentType(audioContentType)
-                            .content(Files.readAllBytes(target.toPath())).build());
-                    log.debug("Audio content is saved as {}", media);
-
-                    if (!source.delete()) {
-                        log.warn("Temporary file {} was not deleted", source.getAbsolutePath());
+                    byte[] audio = toMediaBytes(Base64.getDecoder().decode(message.getPayload()));
+                    source = Files.createTempFile(workspace.toPath(), "audio-", ".input");
+                    target = Files.createTempFile(workspace.toPath(), "audio-", ".output");
+                    Files.write(source, audio);
+                    BoundedAudioEncoder.encode(source, target, codec, bitrate, samplingRate, format);
+                    long size = Files.size(target);
+                    if (size == 0 || size >= BoundedAudioEncoder.MAX_OUTPUT) {
+                        throw new java.io.IOException("Audio output empty or exceeds capacity");
                     }
-
-                    if (!target.delete()) {
-                        log.warn("Temporary file {} was not deleted", target.getAbsolutePath());
-                    }
-
+                    media = mediaService.save(Media.builder().message(message).type(Media.Type.AUDIO)
+                            .contentType(audioContentType).content(Files.readAllBytes(target)).build());
                 } catch (Exception ex) {
-                    log.warn("Unable to create audio media record for message {}", message, ex);
+                    if (ex instanceof InterruptedException) Thread.currentThread().interrupt();
+                    log.warn("Unable to create audio media record: {}", ex.getClass().getSimpleName());
+                } finally {
+                    for (java.nio.file.Path path : new java.nio.file.Path[]{source, target}) {
+                        if (path != null) try { Files.deleteIfExists(path); }
+                        catch (java.io.IOException ex) { log.warn("Unable to clean temporary audio file"); }
+                    }
                 }
 
             } else if (MessageUtils.IMAGE_TYPES.contains(message.getType())) {
 
-                byte[] payload = Base64.getDecoder().decode(message.getPayload().getBytes());
+                byte[] payload;
+                try { payload = Base64.getDecoder().decode(message.getPayload()); }
+                catch (IllegalArgumentException ex) { return null; }
+                if (payload.length < IMG_SKIP_BYTES + 4 || payload.length > MAX_MEDIA_BYTES) return null;
                 byte[] image = toMediaBytes(Arrays.copyOfRange(payload, IMG_SKIP_BYTES, payload.length));
 
                 String magic = HexFormat.of().withUpperCase().formatHex(Arrays.copyOfRange(image, 0, 4)).toLowerCase();

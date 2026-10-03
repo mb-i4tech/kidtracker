@@ -40,3 +40,8 @@ test('CSRF endpoint failure prevents mutation, rather than retrying insecurely',
   let mutations=0;const h=load('util',{fetch:async url=>{if(url!='/api/csrf')mutations++;return {ok:false};}});
   await h.api.fetchWithRedirect('/api/user/info',{method:'PUT'});assert.equal(mutations,0);assert.equal(h.errors.length,1);
 });
+test('HTML executable resources are local and pinned rather than CDN-dependent',()=>{
+ const html=fs.readFileSync('src/main/resources/static/index.html','utf8');
+ assert.equal(/<script[^>]+src=["']https?:/.test(html),false);
+ assert.equal(/<link[^>]+href=["']https?:/.test(html),false);
+});

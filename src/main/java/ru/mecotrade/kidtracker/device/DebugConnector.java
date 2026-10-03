@@ -43,6 +43,9 @@ public class DebugConnector extends DeviceConnector {
     @Override
     void process(byte[] data) throws KidTrackerException {
 
+        if (debugBuffer.length() + data.length > 8192) {
+            throw new ru.mecotrade.kidtracker.exception.KidTrackerParseException("Debug line exceeds capacity");
+        }
         debugBuffer.append(new String(data));
 
         int newlineIndex;
