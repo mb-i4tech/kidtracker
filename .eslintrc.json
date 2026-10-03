@@ -1,0 +1,6 @@
+{
+  "env": {"browser": true, "commonjs": true, "es2020": true, "jquery": true},
+  "parserOptions": {"ecmaVersion": 2020},
+  "globals": {"L": "readonly", "Stomp": "readonly", "SockJS": "readonly", "gj": "readonly"},
+  "rules": {"no-undef": "error", "no-unreachable": "error", "valid-typeof": "error"}
+}

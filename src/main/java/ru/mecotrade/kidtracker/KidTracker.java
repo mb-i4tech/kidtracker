@@ -48,19 +48,20 @@ public class KidTracker {
     @Value("${kidtracker.admin.username:admin}")
     private String adminUsername;
 
-    @Value("${kidtracker.admin.password:password}")
+    @Value("${kidtracker.admin.password:}")
     private String adminPassword;
 
     @PostConstruct
     public void startServers() {
+        userProcessor.addAdminIfNoUsers(adminUsername, adminPassword);
+        adminPassword = null;
+
         messageServer.start();
 
         if (startDebugServer) {
             debugServer.start();
         }
 
-        userProcessor.addAdminIfNoUsers(adminUsername, adminPassword);
-        adminPassword = null;
     }
 
     public static void main(String[] args) {

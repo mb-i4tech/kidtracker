@@ -26,7 +26,7 @@ async function showWarning(warning) {
     return new Promise(resolve => {
         $modal.on('shown.bs.modal', function onShow() {
             $modal.off('shown.bs.modal', onShow);
-            $('div.alert', $modal).html(warning);
+            $('div.alert', $modal).text(warning);
             $close.click(function onClose() {
                 $close.off('click', onClose);
                 $modal.modal('hide');
@@ -51,7 +51,7 @@ async function showError(error) {
     return new Promise(resolve => {
         $modal.on('shown.bs.modal', function onShow() {
             $modal.off('shown.bs.modal', onShow);
-            $('div.alert', $modal).html(error);
+            $('div.alert', $modal).text(error);
             $close.click(function onClose() {
                 $close.off('click', onClose);
                 $modal.modal('hide');

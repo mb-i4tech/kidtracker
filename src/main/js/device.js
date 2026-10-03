@@ -32,7 +32,7 @@ function onStatus(status) {
         const $tr = $(`#kid-device-${s.deviceId}`).parent();
         $('div.user-device-name-deviceid', $tr).toggleClass('online', s.online).toggleClass('offline', !s.online);
         if (s.date) {
-            $time = $('div.user-device-name-time', $tr);
+            const $time = $('div.user-device-name-time', $tr);
             $time.attr('data-timestamp', s.date);
             const fromNow = $time.attr('data-fromnow') == 'true';
             $time.text(fromNow ? moment(s.date).fromNow() : moment(s.date).format(LAST_MESSAGE_TIME_FORMAT));
@@ -50,6 +50,7 @@ async function showDevice(stompClient) {
 
         const $tbody = $('<tbody>');
         const kids = await fetchWithRedirect(`/api/user/kids/info`);
+        if (!Array.isArray(kids)) return;
         kids.forEach(k => {
             const $tr = $('<tr>');
             const $thThumb = $('<th>').addClass('user-device-thumb');
@@ -76,8 +77,8 @@ async function showDevice(stompClient) {
             $thumb.off('click');
             $thumb.on('click', async () => {
                 await editDevice(k);
-                renderDevice();
-                setTimeout(() => stompClient.send(`/user/${stompClient.userId}/status`), 100);
+                await renderDevice();
+                if (stompClient && stompClient.connected) stompClient.send(`/user/${stompClient.userId}/status`);
             });
             const $time = $('div.user-device-name-time', $thumb.parent());
             $time.off('click');
@@ -92,7 +93,7 @@ async function showDevice(stompClient) {
         });
     }
 
-    renderDevice();
+    await renderDevice();
 
     var subscription = null;
 
@@ -100,7 +101,7 @@ async function showDevice(stompClient) {
 
         function hide() {
 
-            subscription.unsubscribe();
+            if (subscription) subscription.unsubscribe();
 
             $close.off('click');
             $add.off('click');
@@ -111,11 +112,13 @@ async function showDevice(stompClient) {
 
         $modal.on('shown.bs.modal', function onShow() {
             $modal.off('shown.bs.modal', onShow);
-            subscription = stompClient.subscribe('/user/queue/status', response => onStatus(JSON.parse(response.body)));
+            if (stompClient && stompClient.connected) {
+                subscription = stompClient.subscribe('/user/queue/status', response => onStatus(JSON.parse(response.body)));
+            }
             $add.click(async () => {
                 await editDevice();
-                renderDevice();
-                setTimeout(() => stompClient.send(`/user/${stompClient.userId}/status`), 100);
+                await renderDevice();
+                if (stompClient && stompClient.connected) stompClient.send(`/user/${stompClient.userId}/status`);
             });
             $close.click(() => {
                 hide();
@@ -150,9 +153,13 @@ async function editDevice(kid) {
     if (create) {
         kid = {};
         const serverConfig = await fetchWithRedirect('/api/user/config');
-        $sms = $('<span>').addClass('user-add-device-sms').text(`pw,123456,ip,${window.location.host.split(':')[0]},${serverConfig.messagePort}#`);
-        $password = $('<span>').addClass('user-add-device-sms').text('123456');
-        $info.html(i18n.format('Send text message to the device {}If the device password was changed, put it instead of {}', ['<br>'+$sms[0].outerHTML+'<br>', $password[0].outerHTML]));
+        if (serverConfig && serverConfig.publicHost && serverConfig.publicPort) {
+            const $sms = $('<span>').addClass('user-add-device-sms').text(`pw,123456,ip,${serverConfig.publicHost},${serverConfig.publicPort}#`);
+            const $password = $('<span>').addClass('user-add-device-sms').text('123456');
+            $info.html(i18n.format('Send text message to the device {}If the device password was changed, put it instead of {}', ['<br>'+$sms[0].outerHTML+'<br>', $password[0].outerHTML]));
+        } else {
+            $info.text(i18n.translate('Public device endpoint is not configured. Ask the administrator before configuring the watch.'));
+        }
     }
 
     $info.toggle(create);
@@ -223,9 +230,9 @@ async function editDevice(kid) {
                 {
                     error: message => {
                         showError(i18n.translate(message || 'Command is not completed'));
-                    }
+                    },
+                    success: hide
                 });
-                hide();
             });
             $removeThumb.click(async () => {
                 delete kid.thumb;
@@ -246,9 +253,9 @@ async function editDevice(kid) {
                     {
                         error: message => {
                             showError(i18n.translate(message || 'Command is not completed'));
-                        }
+                        },
+                        success: hide
                     });
-                    hide();
                 }
             });
             $add.click(async () => {
@@ -267,9 +274,9 @@ async function editDevice(kid) {
                     {
                         error: message => {
                             showError(i18n.translate(message || 'Command is not completed'));
-                        }
+                        },
+                        success: hide
                     });
-                    hide();
                 }
             });
             $close.click(() => {

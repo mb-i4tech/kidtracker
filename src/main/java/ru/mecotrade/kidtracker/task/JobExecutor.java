@@ -29,16 +29,19 @@ public class JobExecutor {
     private final Map<UserToken, Temporal<Job>> jobs = new ConcurrentHashMap<>();
 
     public void apply(UserToken token, Job job) {
-        jobs.put(token, Temporal.of(job));
+        if (jobs.putIfAbsent(token, Temporal.of(job)) != null) {
+            throw new IllegalStateException("A confirmation with this token is already pending; retry");
+        }
     }
 
     public void execute(UserToken userToken, long ttl) throws KidTrackerException {
-        Temporal<Job> job = jobs.get(userToken);
+        // Consume before executing: concurrent requests and failed jobs cannot replay a token.
+        Temporal<Job> job = jobs.remove(userToken);
         if (job != null && System.currentTimeMillis() - job.getTimestamp().getTime() < ttl) {
             job.getValue().execute();
-            jobs.remove(userToken);
+
         } else {
-            throw new KidTrackerInvalidTokenException(userToken.getToken());
+            throw new KidTrackerInvalidTokenException("Invalid or expired confirmation token");
         }
     }
 

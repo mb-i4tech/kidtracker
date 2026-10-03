@@ -210,7 +210,7 @@ async function updateMidnightSnapshot() {
 }
 
 function requestKidReports() {
-    if (stompClient) {
+    if (stompClient && stompClient.connected) {
         stompClient.send(`/user/${stompClient.userId}/report`);
     }
 }
@@ -231,6 +231,7 @@ async function onKidReports(reports) {
         }
         if (!path || deviceId != report.deviceId) {
             const kid = kids.find(k => k.deviceId == report.deviceId);
+            if (!kid || !report.position) return;
             updateKidPopup(kid,
                     report.position,
                     report.snapshot,
@@ -452,6 +453,12 @@ async function initNavbar() {
 
     $devices.off('click');
     $devices.click(async () => {
+        if (!user || !user.phone) {
+            await showWarning(i18n.translate('Add your phone number in Profile before adding a watch.'));
+            await showAccount();
+            await showNavbar();
+            return;
+        }
         await showDevice(stompClient);
         await showNavbar();
         requestKidReports();
@@ -507,6 +514,7 @@ async function showNavbar() {
     }
 
     user = await fetchWithRedirect(`/api/user/info`);
+    if (!user) return;
     user.marker = L.marker(userProps ? userProps.latlng : [0,0]).addTo(map);
     user.circle = L.circle(userProps ? userProps.latlng : [0,0], userProps ? userProps.radius : 0, {weight: 0, color: 'green'}).addTo(map);
     $username.text(user.name);
@@ -514,10 +522,8 @@ async function showNavbar() {
     if (!user.admin) {
         $register.off('click');
     }
-    if (!user.phone) {
-        $devices.prop('disabled', true);
-        $devices.off('click');
-    }
+    $devices.prop('disabled', false);
+    $devices.attr('title', user.phone ? '' : 'Add your phone number in Profile before adding a watch.');
 
     // kids definition and location
     const fromNow = {};
@@ -536,7 +542,9 @@ async function showNavbar() {
     }
 
 	kids = await fetchWithRedirect(`/api/user/kids/info`);
-    $select.html(kids.map(k => `<option value="${k.deviceId}">${k.name}</option>`).reduce((html, option) => html + option, ''));
+    if (!Array.isArray(kids)) return;
+    $select.empty();
+    kids.forEach(k => $select.append($('<option>').val(k.deviceId).text(k.name)));
     if (selected) {
         $select.val(selected);
     }
@@ -569,18 +577,37 @@ async function showNavbar() {
 }
 
 function connectStompClient() {
-    return new Promise(function(resolve) {
+    return new Promise(resolve => {
         const client = Stomp.over(new SockJS('/device'));
-        console.log(user.credentials.username);
+        client.debug = () => {};
         client.userId = user.credentials.username;
-        client.connect({}, frame => resolve(client), error => window.location.replace('/'));
+        let settled = false;
+        function failed() {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            showError(i18n.translate('Live connection unavailable. My kids and Profile still work. Reload to reconnect.'));
+            resolve(null);
+        }
+        const timer = setTimeout(failed, 15000);
+        client.connect({}, () => {
+            if (settled) { client.disconnect(); return; }
+            settled = true;
+            clearTimeout(timer);
+            resolve(client);
+        }, failed);
     });
 }
 
 $(async () => {
-    await initNavbar();
-    await showNavbar();
-
-    stompClient = await connectStompClient();
-    stompClient.subscribe('/user/queue/report', response => onKidReports(JSON.parse(response.body)));
+    try {
+        await initNavbar();
+        await showNavbar();
+        if (!user) return;
+        stompClient = await connectStompClient();
+        if (stompClient) stompClient.subscribe('/user/queue/report', response => onKidReports(JSON.parse(response.body)));
+    } catch (error) {
+        showError(i18n.translate('Application could not start. Please reload; if this continues, contact the administrator.'));
+        console.error(error);
+    }
 });

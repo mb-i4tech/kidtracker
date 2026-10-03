@@ -16,7 +16,9 @@
 package ru.mecotrade.kidtracker.processor;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomStringUtils;
+import java.security.SecureRandom;
+import org.springframework.security.access.AccessDeniedException;
+import ru.mecotrade.kidtracker.config.PublicDeviceEndpoint;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,6 +51,11 @@ import static ru.mecotrade.kidtracker.util.ValidationUtils.isValidPhone;
 @Component
 @Slf4j
 public class UserProcessor extends JobExecutor implements Cleanable {
+
+    private final SecureRandom tokenRandom = new SecureRandom();
+
+    @Autowired
+    private PublicDeviceEndpoint publicDeviceEndpoint;
 
     @Autowired
     private UserService userService;
@@ -133,7 +140,7 @@ public class UserProcessor extends JobExecutor implements Cleanable {
     }
 
     public void applyAddKid(UserPrincipal userPrincipal, Kid kid) throws KidTrackerException {
-        UserToken userToken = UserToken.of(userPrincipal.getUserInfo().getId(), RandomStringUtils.randomNumeric(tokenLength));
+        UserToken userToken = UserToken.of(userPrincipal.getUserInfo().getId(), newToken());
         apply(userToken, () -> doAddKid(userPrincipal, kid));
         deviceManager.sendOrApply(kid.getDeviceId(), Command.of("MESSAGE", userToken.getToken()));
         log.info("{} is sent to {} by user {}", userToken, kid, userPrincipal.getUsername());
@@ -147,6 +154,9 @@ public class UserProcessor extends JobExecutor implements Cleanable {
     public void addAdminIfNoUsers(String username, String password) {
 
         if (userService.count() == 0) {
+            if (StringUtils.isBlank(username) || StringUtils.isBlank(password) || "password".equals(password)) {
+                throw new IllegalStateException("Set an explicit non-default kidtracker.admin.password before first startup");
+            }
             UserInfo admin = UserInfo.builder()
                     .username(username)
                     .password(passwordEncoder.encode(password))
@@ -160,6 +170,10 @@ public class UserProcessor extends JobExecutor implements Cleanable {
 
     @Transactional
     public void addUser(UserPrincipal userPrincipal, User user) throws KidTrackerInvalidOperationException {
+
+        if (userPrincipal == null || !userPrincipal.getUserInfo().isAdmin()) {
+            throw new AccessDeniedException("Only administrators may create accounts");
+        }
 
         if (userService.getByUsername(user.getCredentials().getUsername()).isPresent()) {
             log.info("{} can't be created since username is not unique", user);
@@ -183,7 +197,12 @@ public class UserProcessor extends JobExecutor implements Cleanable {
 
         UserInfo userInfo = userService.get(userPrincipal.getUserInfo().getId())
                 .orElseThrow(() -> new InsufficientAuthenticationException(String.valueOf(userPrincipal.getUserInfo().getId())));
-        userInfo.setName(user.getName());
+        if (!isValidPhone(user.getPhone())) {
+            throw new KidTrackerInvalidOperationException("Incorrect phone number");
+        }
+        if (StringUtils.isNotBlank(userInfo.getPhone()) && !userInfo.getPhone().equals(user.getPhone())) {
+            throw new KidTrackerInvalidOperationException("Existing phone number cannot be changed through profile update");
+        }
         Credentials credentials = user.getCredentials();
         if (credentials != null && StringUtils.isNoneBlank(credentials.getNewPassword())) {
             if (passwordEncoder.matches(credentials.getPassword(), userInfo.getPassword())) {
@@ -193,6 +212,8 @@ public class UserProcessor extends JobExecutor implements Cleanable {
                 throw new KidTrackerInvalidOperationException("Incorrect credentials.");
             }
         }
+        userInfo.setName(user.getName());
+        userInfo.setPhone(user.getPhone());
         userService.save(userInfo);
         log.info("{} successfully updated", userInfo);
 
@@ -228,14 +249,26 @@ public class UserProcessor extends JobExecutor implements Cleanable {
     }
 
     public ServerConfig serverConfig() {
-        return new ServerConfig(messagePort, debugStart ? debugPort : 0);
+        return new ServerConfig(messagePort, debugStart ? debugPort : 0,
+                publicDeviceEndpoint.getPublicHost(), publicDeviceEndpoint.getPublicPort());
+    }
+
+    private String newToken() {
+        if (tokenLength < 4 || tokenLength > 12) {
+            throw new IllegalStateException("kidtracker.token.length must be between 4 and 12");
+        }
+        StringBuilder token = new StringBuilder(tokenLength);
+        for (int i = 0; i < tokenLength; i++) {
+            token.append(tokenRandom.nextInt(10));
+        }
+        return token.toString();
     }
 
     private void applyRemoveKid(UserPrincipal userPrincipal, String deviceId) throws KidTrackerException {
 
         if (kidService.exists(userPrincipal.getUserInfo().getId(), deviceId)) {
             if (isValidPhone(userPrincipal.getUserInfo().getPhone())) {
-                UserToken userToken = UserToken.of(userPrincipal.getUserInfo().getId(), RandomStringUtils.randomNumeric(tokenLength));
+                UserToken userToken = UserToken.of(userPrincipal.getUserInfo().getId(), newToken());
                 apply(userToken, () -> doRemoveKid(userPrincipal, deviceId));
                 log.info("{} created for remove kid with device {} by user {}", userToken, deviceId, userPrincipal.getUsername());
                 notifyOrApplyAsync(deviceId, Collections.singletonMap(userPrincipal.getUserInfo().getPhone(), userToken.getToken()));

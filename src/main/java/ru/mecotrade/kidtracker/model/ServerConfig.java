@@ -27,4 +27,8 @@ public class ServerConfig {
     private int messagePort;
 
     private int debugPort;
+
+    private String publicHost;
+
+    private Integer publicPort;
 }

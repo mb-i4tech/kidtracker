@@ -39,6 +39,7 @@ function showRegister() {
         $password.val('');
         $repeat.val('');
         $name.val('');
+        $phone.val('');
         $admin[0].checked = false;
     }
 
