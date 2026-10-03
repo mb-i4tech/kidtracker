@@ -39,6 +39,11 @@ public class MessageConnector extends DeviceConnector {
 
     private final MediaProcessor mediaProcessor;
 
+    static final int MAX_HEADER = 128;
+    static final int MAX_PAYLOAD = 0xffff;
+    static final int MAX_BUFFER = MAX_HEADER + MAX_PAYLOAD + 1024;
+
+    private long partialStarted;
     private byte[] messageBuffer = new byte[0];
 
     public MessageConnector(Socket socket, DeviceManager deviceManager, MessageService messageService, MediaProcessor mediaProcessor) {
@@ -56,6 +61,13 @@ public class MessageConnector extends DeviceConnector {
     @Override
     void process(byte[] data) throws KidTrackerException {
 
+        if (messageBuffer.length > 0 && System.nanoTime() - partialStarted > java.util.concurrent.TimeUnit.SECONDS.toNanos(30)) {
+            throw new KidTrackerParseException("Incomplete frame timed out");
+        }
+        if (messageBuffer.length == 0) partialStarted = System.nanoTime();
+        if (data.length > MAX_BUFFER - messageBuffer.length) {
+            throw new KidTrackerParseException("Device frame exceeds bounded capacity");
+        }
         messageBuffer = Bytes.concat(messageBuffer, data);
 
         while (messageBuffer.length > 0) {
@@ -67,19 +79,26 @@ public class MessageConnector extends DeviceConnector {
             }
             offset++;
 
-            int index = MessageUtils.indexOfMessageSeparator(messageBuffer, offset);
+            int index = separator(offset);
+            if (index < 0) break;
             String manufacturer = new String(messageBuffer, offset, index - offset);
             offset = index + 1;
 
-            index = MessageUtils.indexOfMessageSeparator(messageBuffer, offset);
+            index = separator(offset);
+            if (index < 0) break;
             String deviceId = new String(messageBuffer, offset, index - offset);
             offset = index + 1;
 
-            index = MessageUtils.indexOfMessageSeparator(messageBuffer, offset);
-            int length = Integer.parseInt(new String(messageBuffer, offset, index - offset), 16);
+            index = separator(offset);
+            if (index < 0) break;
+            String hexLength = new String(messageBuffer, offset, index - offset, java.nio.charset.StandardCharsets.US_ASCII);
+            if (!hexLength.matches("[0-9a-fA-F]{4}")) {
+                throw new KidTrackerParseException("Invalid four-digit frame length");
+            }
+            int length = Integer.parseInt(hexLength, 16);
             offset = index + 1;
 
-            if (offset + length > messageBuffer.length) {
+            if (offset + length >= messageBuffer.length) {
                 log.debug("Waiting for next data chunk since payload length {} exceeds data capacity {} in message \"{}\"", length, messageBuffer.length - offset, new String(messageBuffer, 0, offset));
                 break;
             } else {
@@ -105,10 +124,22 @@ public class MessageConnector extends DeviceConnector {
                 }
                 offset++;
                 messageBuffer = Arrays.copyOfRange(messageBuffer, offset, messageBuffer.length);
+                partialStarted = System.nanoTime();
 
                 deviceManager.onMessage(Message.device(manufacturer, deviceId, type, payload), this);
             }
         }
+    }
+
+    private int separator(int offset) throws KidTrackerParseException {
+        for (int i = offset; i < messageBuffer.length && i < MAX_HEADER; i++) {
+            if (messageBuffer[i] == '*') {
+                if (i == offset) throw new KidTrackerParseException("Empty frame header field");
+                return i;
+            }
+        }
+        if (messageBuffer.length >= MAX_HEADER) throw new KidTrackerParseException("Frame header too long");
+        return -1;
     }
 
     public synchronized void send(Message message) throws KidTrackerConnectionException {

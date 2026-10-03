@@ -35,6 +35,7 @@ public class DeviceServer implements Runnable {
     private final int port;
 
     private Thread thread;
+    private volatile ServerSocket listeningSocket;
 
     public DeviceServer(int port, DeviceConnectorFactory deviceListenerFactory) {
         this.port = port;
@@ -48,6 +49,9 @@ public class DeviceServer implements Runnable {
 
     @PreDestroy
     public void shutdown() {
+        try { if (listeningSocket != null) listeningSocket.close(); } catch (IOException ex) {
+            log.warn("Unable to close device listener", ex);
+        }
         if (thread != null) {
             thread.interrupt();
         }
@@ -60,9 +64,15 @@ public class DeviceServer implements Runnable {
 
         try (ServerSocket server = new ServerSocket(port)) {
 
+            listeningSocket = server;
             while (!Thread.interrupted()) {
                 Socket client = server.accept();
-                deviceListenerExecutor.execute(deviceConnectorFactory.getConnector(client));
+                try {
+                    deviceListenerExecutor.execute(deviceConnectorFactory.getConnector(client));
+                } catch (RuntimeException ex) {
+                    client.close();
+                    log.warn("Device connection rejected: listener capacity or initialization failure");
+                }
             }
 
         } catch (IOException ex) {

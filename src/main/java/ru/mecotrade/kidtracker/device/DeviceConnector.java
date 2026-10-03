@@ -56,11 +56,11 @@ public abstract class DeviceConnector implements Runnable, Closeable {
     @Override
     public void run() {
 
-        init();
-
         try (DataOutputStream out = new DataOutputStream(socket.getOutputStream());
              DataInputStream in = new DataInputStream(socket.getInputStream())) {
 
+            socket.setSoTimeout(300000);
+            init();
             this.out = out;
 
             while (!isClosed()) {
@@ -73,12 +73,10 @@ public abstract class DeviceConnector implements Runnable, Closeable {
             log.error("[{}] Communication error, closing connection", id, ex);
         } catch (KidTrackerException ex) {
             log.error("[{}] Unable to proceed, closing", id, ex);
-        }
-
-        try {
-            close();
-        } catch (KidTrackerConnectionException ex) {
-            log.error("[{}] Unable to close connection", id, ex);
+        } finally {
+            try { close(); } catch (KidTrackerConnectionException ex) {
+                log.error("[{}] Unable to close connection", id, ex);
+            }
         }
     }
 
@@ -106,21 +104,9 @@ public abstract class DeviceConnector implements Runnable, Closeable {
 
     private byte[] read(InputStream in) throws IOException {
 
-        int count;
-        byte[] message = new byte[0];
-
-        do {
-            count = in.read(buffer);
-            if (count == -1) {
-                throw new EOFException();
-            }
-            byte[] newMessage = new byte[message.length + count];
-            System.arraycopy(message, 0, newMessage, 0, message.length);
-            System.arraycopy(buffer, 0, newMessage, message.length, count);
-            message = newMessage;
-        } while (count == buffer.length);
-
-        return message;
+        int count = in.read(buffer);
+        if (count == -1) throw new EOFException();
+        return java.util.Arrays.copyOf(buffer, count);
     }
 
     protected void send(byte[] bytes) throws IOException {
