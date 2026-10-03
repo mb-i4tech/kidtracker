@@ -259,15 +259,15 @@ public class UserController {
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
             try {
                 userProcessor.execute(UserToken.of(userPrincipal.getUserInfo().getId(), token));
-                log.info("Token {} successfully executed by {}", token, userPrincipal.getUserInfo());
+                log.info("Confirmation successfully executed by {}", userPrincipal.getUserInfo());
             } catch (InsufficientAuthenticationException ex) {
                 throw ex;
             } catch (Exception ex) {
-                log.warn("{} fails to execute token {}", userPrincipal.getUserInfo(), token, ex);
+                log.warn("{} fails to execute confirmation", userPrincipal.getUserInfo());
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
             }
         } else {
-            log.warn("Unauthorized request to execute token {}", token);
+            log.warn("Unauthorized request to execute confirmation");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
     }
@@ -316,7 +316,7 @@ public class UserController {
             UserInfo userInfo = userPrincipal.getUserInfo();
             log.debug("User {} subscribed to device chat queue", userInfo.getUsername());
 
-            if (deviceId != null && userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
+            if (deviceId == null || userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
                 log.warn("User {} attempts to access chat messages of unauthorized device {}", userInfo.getUsername(), deviceId);
                 throw new InsufficientAuthenticationException(deviceId);
             } else {
@@ -337,7 +337,7 @@ public class UserController {
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
             UserInfo userInfo = userPrincipal.getUserInfo();
-            if (deviceId != null && userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
+            if (deviceId == null || userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
                 log.warn("User {} attempts to access chat messages of unauthorized device {}", userInfo.getUsername(), deviceId);
                 throw new InsufficientAuthenticationException(deviceId);
             }
@@ -355,7 +355,7 @@ public class UserController {
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
             UserInfo userInfo = userPrincipal.getUserInfo();
-            if (deviceId != null && userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
+            if (deviceId == null || userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
                 log.warn("User {} attempts to access chat messages of unauthorized device {}", userInfo.getUsername(), deviceId);
                 throw new InsufficientAuthenticationException(deviceId);
             }

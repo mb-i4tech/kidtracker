@@ -205,7 +205,7 @@ function editContact(deviceId, contactId) {
                 hide(true);
             });
             $upload.click(async () => {
-                if (!$name.val() && tab == PHONEBOOK) {
+                if (!$name.val() && tab == 'PHONEBOOK') {
                     showError(i18n.translate('Name should not be empty.'))
                 } else if (!$phone.val()) {
                     showError(i18n.translate('Phone should not be empty.'))

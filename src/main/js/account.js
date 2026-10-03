@@ -44,13 +44,11 @@ async function showAccount() {
     if (user) {
         $username.val(user.credentials.username);
         $phone.val(user.phone);
+        $phone.prop('disabled', !!user.phone);
         $admin[0].checked = user.admin;
         $name.val(user.name);
     } else {
-        $username.val('');
-        $phone.val('');
-        $admin[0].checked = false;
-        $name.val('');
+        return;
     }
     clear();
 
@@ -73,6 +71,7 @@ async function showAccount() {
             $remove.click(async () => {
                 user.credentials = {password: $password.val(), newPassword: $newPassword.val()};
                 user.name = $name.val();
+                user.phone = $phone.val();
                 if (!user.credentials.password) {
                     await showError(i18n.translate('Enter current password.'));
                 } else {
@@ -95,6 +94,7 @@ async function showAccount() {
             $update.click(async () => {
                 user.credentials = {password: $password.val(), newPassword: $newPassword.val()};
                 user.name = $name.val();
+                user.phone = $phone.val();
                 if (user.credentials.newPassword && !user.credentials.password) {
                     await showError(i18n.translate('Please enter current password.'));
                 } else {

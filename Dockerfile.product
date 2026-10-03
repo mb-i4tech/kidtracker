@@ -1,0 +1,22 @@
+FROM node:22.14.0-bookworm-slim AS frontend
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY .eslintrc.json ./
+COPY src/main/js ./src/main/js
+RUN mkdir -p src/main/resources/static/js && npm run lint && npm run build
+
+FROM maven:3.8.8-eclipse-temurin-8 AS backend
+WORKDIR /build
+COPY pom.xml ./
+COPY src ./src
+COPY --from=frontend /build/src/main/resources/static/js/index.js ./src/main/resources/static/js/index.js
+RUN mvn -B verify
+
+FROM eclipse-temurin:8-jre
+WORKDIR /app
+RUN mkdir -p /app/data /app/logs /app/media
+COPY --from=backend /build/target/kidtracker*.jar /app/kidtracker.jar
+ENV SERVER_SSL_ENABLED=false
+EXPOSE 8001 8003
+ENTRYPOINT ["java", "-jar", "/app/kidtracker.jar"]

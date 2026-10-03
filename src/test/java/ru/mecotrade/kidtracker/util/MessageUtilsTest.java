@@ -16,7 +16,6 @@
 package ru.mecotrade.kidtracker.util;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 import ru.mecotrade.kidtracker.exception.KidTrackerParseException;
 import ru.mecotrade.kidtracker.model.Location;
 import ru.mecotrade.kidtracker.dao.model.Message;
@@ -25,7 +24,6 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
 public class MessageUtilsTest {
 
     private static final double DELTA = 1e-6;

@@ -19,42 +19,37 @@
 const i18n = require('./i18n.js');
 const {showWarning, showError} = require('./notification.js');
 
+// One request contract: failed requests return undefined, never invoke success,
+// and always release the blocking overlay. 202 completes only after token proof.
 async function fetchWithRedirect(url, fetchOptions, options) {
     options = options || {};
-    if (options.block === true) {
-        $.blockUI({
-            message: '<img src="images/confirmation.gif">',
-            css: {
-                border: 'none',
-                backgroundColor: 'transparent',
-                centerX: true,
-                centerY: true
-            },
-            baseZ: 10000
-        });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), options.timeout || 20000);
+    if (options.block) $.blockUI({message: '<img src="images/confirmation.gif">', baseZ: 10000});
+    let response;
+    let body;
+    try {
+        response = await fetch(url, Object.assign({}, fetchOptions, {signal: controller.signal}));
+        if (response.redirected) {
+            window.location.assign(response.url);
+            return;
+        }
+        const text = response.status === 204 ? '' : await response.text();
+        try { body = text ? JSON.parse(text) : null; } catch (ignored) { body = null; }
+        if (!response.ok) throw new Error(body && body.message || `Request failed (${response.status})`);
+        if (text && body === null) throw new Error('Unexpected server response. Please retry.');
+    } catch (error) {
+        const message = error.name === 'AbortError' ? 'Request timed out. Please retry.' : error.message;
+        if (options.error) options.error(message);
+        else showError(i18n.translate(message || 'Command is not completed'));
+        return;
+    } finally {
+        clearTimeout(timer);
+        if (options.block) $.unblockUI();
     }
-    const response = await fetch(url, fetchOptions);
-    if (options.block === true) {
-        $.unblockUI();
-    }
-    if (response.redirected) {
-        window.location = response.url;
-    } else if (response.ok) {
-        if (options.success) {
-            options.success();
-        }
-        if (response.status == 202) {
-            await showInputToken(options.deviceId);
-        }
-        if (response.status != 204) {
-            return await response.json();
-        }
-    } else {
-        if (options.error) {
-            const text = await response.text();
-            options.error(text ? JSON.parse(text).message : null);
-        }
-    }
+    if (response.status === 202 && !await showInputToken(options.deviceId)) return;
+    if (options.success) await options.success(body);
+    return body === null ? true : body;
 }
 
 function initCommand($button, command, deviceId, options) {
@@ -183,16 +178,17 @@ async function showInputToken(deviceId) {
     const $executeToken = $('#input-token-execute');
 
     $inputToken.val('');
+    $executeToken.prop('disabled', false);
 
     return new Promise(resolve => {
 
-        function hide() {
+        function hide(confirmed) {
 
             $closeToken.off('click');
             $executeToken.off('click');
             $modalToken.modal('hide');
 
-            resolve(null);
+            resolve(!!confirmed);
         }
 
         $modalToken.on('shown.bs.modal', function onShow() {
@@ -201,15 +197,18 @@ async function showInputToken(deviceId) {
                 hide();
             });
             $executeToken.click(async () => {
-                const token = $inputToken.val();
-                await fetchWithRedirect(deviceId ? `/api/device/${deviceId}/execute/${token}` : `/api/user/token/${token}`, {},
+                const token = $inputToken.val().trim();
+                if (!token) { showError(i18n.translate("Token should not be empty.")); return; }
+                $executeToken.prop("disabled", true);
+                await fetchWithRedirect(deviceId ? `/api/device/${deviceId}/execute/${encodeURIComponent(token)}` : `/api/user/token/${encodeURIComponent(token)}`, {},
                 {
                     error: message => {
                         showError(i18n.translate(message || 'Command is not completed'));
                     },
-                    block: true
+                    block: true,
+                    success: () => hide(true)
                 });
-                hide();
+                $executeToken.prop('disabled', false);
             });
         });
 

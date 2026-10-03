@@ -46,13 +46,13 @@ public class UserDeviceFilter extends GenericFilterBean {
         HttpServletRequest httpServletRequest = (HttpServletRequest) request;
         HttpServletResponse httpServletResponse = (HttpServletResponse) response;
 
-        String uri = httpServletRequest.getRequestURI();
+        String uri = httpServletRequest.getRequestURI().substring(httpServletRequest.getContextPath().length());
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-            userPrincipal.getUserInfo().setPassword(null);
+
 
             Map<String, String> uriParams = URI_TEMPLATE.match(uri);
             String deviceId = uriParams.get("deviceId");

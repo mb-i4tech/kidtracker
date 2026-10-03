@@ -7,3 +7,9 @@ logs
 media
 pgdata
 *.log
+.secrets
+.env
+*.env
+dokploy-build-before.json
+playwright-report
+test-results

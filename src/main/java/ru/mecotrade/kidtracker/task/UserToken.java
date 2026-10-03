@@ -26,6 +26,7 @@ public class UserToken {
 
     private final Long userId;
 
+    @ToString.Exclude
     private final String token;
 
     private UserToken(Long userId, String token) {

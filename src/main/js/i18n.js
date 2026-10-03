@@ -182,6 +182,7 @@ const i18n = {
             const translation = translations[token];
             return translation ? translation : token;
         }
+        return token;
     },
 
     apply: function(...elements) {
@@ -204,7 +205,7 @@ const i18n = {
 
     setLocale: function(locale) {
         this.locale = locale;
-        this.lang = navigator.language.split('-')[0]
+        this.lang = this.locale.split('-')[0]
     }
 }
 
