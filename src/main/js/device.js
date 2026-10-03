@@ -154,6 +154,7 @@ async function editDevice(kid) {
     let smsText = '';
     let busy = false;
     const create = !kid;
+    $editModal.toggleClass('onboarding-create', create);
     $('.onboarding-only', $editModal).toggle(create);
     $status.text('');
     $copy.hide();
