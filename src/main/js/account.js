@@ -48,10 +48,7 @@ async function showAccount() {
         $admin[0].checked = user.admin;
         $name.val(user.name);
     } else {
-        $username.val('');
-        $phone.val('');
-        $admin[0].checked = false;
-        $name.val('');
+        return;
     }
     clear();
 
