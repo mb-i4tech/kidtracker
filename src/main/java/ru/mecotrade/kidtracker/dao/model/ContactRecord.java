@@ -16,15 +16,19 @@
 package ru.mecotrade.kidtracker.dao.model;
 
 import lombok.Data;
+import org.hibernate.annotations.JdbcTypeCode;
+import java.sql.Types;
 import org.hibernate.annotations.UpdateTimestamp;
 import ru.mecotrade.kidtracker.model.ContactType;
 import ru.mecotrade.kidtracker.model.Contact;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.util.Date;
 
 @Data
@@ -34,7 +38,9 @@ import java.util.Date;
 public class ContactRecord {
 
     @Id
-    @GeneratedValue
+    // Preserve Hibernate 5 global sequence and increment; never reset existing IDs.
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "legacy_sequence")
+    @SequenceGenerator(name = "legacy_sequence", sequenceName = "hibernate_sequence", allocationSize = 1)
     private Long id;
 
     @UpdateTimestamp
@@ -42,6 +48,8 @@ public class ContactRecord {
 
     private String deviceId;
 
+    // Hibernate 5 persisted enum ordinals as INTEGER.
+    @JdbcTypeCode(Types.INTEGER)
     private ContactType type;
 
     private Integer index;

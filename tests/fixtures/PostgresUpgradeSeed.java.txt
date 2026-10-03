@@ -1,0 +1,64 @@
+package ru.mecotrade.kidtracker.processor;
+
+import javax.persistence.EntityManager;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.annotation.Commit;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import ru.mecotrade.kidtracker.dao.model.*;
+import ru.mecotrade.kidtracker.dao.repository.*;
+import ru.mecotrade.kidtracker.model.ContactType;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import static org.junit.jupiter.api.Assertions.*;
+
+/** Runs only against a separately provisioned, populated Hibernate 5 synthetic database.
+ * No app bootstrap, sockets, production datasource, SMS or device connections are loaded.
+ * The baseline seeding variant is generated in a disposable checkout (see migration notes).
+ */
+@ContextConfiguration(classes = PostgresUpgradeRehearsalTest.PersistenceOnly.class)
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@EnabledIfEnvironmentVariable(named = "KIDTRACKER_UPGRADE_POSTGRES_URL", matches = "jdbc:postgresql:.*")
+class PostgresUpgradeRehearsalTest {
+    @Configuration
+    @EntityScan("ru.mecotrade.kidtracker.dao.model")
+    @EnableJpaRepositories("ru.mecotrade.kidtracker.dao.repository")
+    static class PersistenceOnly { }
+    @Autowired EntityManager em;
+    @Autowired UserRepository users;
+    @Autowired MessageRepository messages;
+    @Autowired MediaRepository media;
+    @DynamicPropertySource static void properties(DynamicPropertyRegistry r) {
+        r.add("spring.datasource.url", () -> System.getenv("KIDTRACKER_UPGRADE_POSTGRES_URL"));
+        r.add("spring.datasource.username", () -> "kidtracker_test");
+        r.add("spring.datasource.password", () -> "disposable-test-only");
+        r.add("spring.datasource.driverClassName", () -> "org.postgresql.Driver");
+        r.add("spring.jpa.database-platform", () -> "org.hibernate.dialect.PostgreSQL10Dialect");
+        r.add("spring.jpa.hibernate.ddl-auto", () -> "create");
+    }
+    @Test @Commit void seedBaselineHibernate5() {
+        String hash = new BCryptPasswordEncoder(4).encode("synthetic-only-password");
+        UserInfo admin = UserInfo.builder().username("synthetic-admin").password(hash).admin(true).build();
+        em.persist(admin);
+        UserInfo member = UserInfo.builder().username("synthetic-member").password(hash).admin(false).createdBy(admin).build();
+        em.persist(member);
+        DeviceInfo device = DeviceInfo.of("synthetic-device"); em.persist(device);
+        em.persist(KidInfo.builder().id(new Assignment()).user(member).device(device).name("Synthetic child").thumb("thumbnail-sentinel").build());
+        Message msg = Message.device("synthetic", "synthetic-device", "TEXT", "persisted payload"); em.persist(msg);
+        em.persist(Media.builder().message(msg).type(Media.Type.TEXT).contentType("text/plain").content("synthetic media".getBytes(StandardCharsets.UTF_8)).build());
+        ContactRecord contact = new ContactRecord(); contact.setDeviceId(device.getId()); contact.setType(ContactType.SOS); contact.setIndex(1); contact.setPhone("+37060000000"); contact.setName("Synthetic contact"); em.persist(contact);
+        ConfigRecord config = new ConfigRecord(); config.setDeviceId(device.getId()); config.setParameter("legacy-setting"); config.setValue("legacy-value"); em.persist(config);
+        em.flush();
+        assertNotNull(admin.getId());
+    }
+}

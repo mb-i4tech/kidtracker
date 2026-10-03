@@ -19,7 +19,7 @@ import net.coobird.thumbnailator.Thumbnails;
 import net.coobird.thumbnailator.geometry.Positions;
 import net.coobird.thumbnailator.resizers.configurations.ScalingMode;
 
-import javax.xml.bind.DatatypeConverter;
+import java.util.Base64;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -39,11 +39,11 @@ public class ThumbUtils {
                 .scalingMode(ScalingMode.PROGRESSIVE_BILINEAR)
                 .outputQuality(1)
                 .toOutputStream(output);
-        return DATA + contentType + BASE_64 + DatatypeConverter.printBase64Binary(output.toByteArray());
+        return DATA + contentType + BASE_64 + Base64.getEncoder().encodeToString(output.toByteArray());
     }
 
     private static byte[] getBytes(String thumb) {
-        return DatatypeConverter.parseBase64Binary(thumb.substring(thumb.indexOf(BASE_64) + BASE_64.length()));
+        return Base64.getDecoder().decode(thumb.substring(thumb.indexOf(BASE_64) + BASE_64.length()));
     }
 
     private static String getContentType(String thumb) {

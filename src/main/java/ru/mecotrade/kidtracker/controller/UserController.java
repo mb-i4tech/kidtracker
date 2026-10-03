@@ -70,6 +70,9 @@ import static ru.mecotrade.kidtracker.util.ValidationUtils.isValidPhone;
 public class UserController {
 
     @Autowired
+    private ru.mecotrade.kidtracker.security.TokenAttemptLimiter tokenAttemptLimiter;
+
+    @Autowired
     private DeviceProcessor deviceProcessor;
 
     @Autowired
@@ -251,12 +254,13 @@ public class UserController {
         }
     }
 
-    @GetMapping("/token/{token}")
+    @PostMapping("/token/{token}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void token(@PathVariable String token, Authentication authentication) {
 
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+            tokenAttemptLimiter.check(userPrincipal.getUserInfo().getId());
             try {
                 userProcessor.execute(UserToken.of(userPrincipal.getUserInfo().getId(), token));
                 log.info("Confirmation successfully executed by {}", userPrincipal.getUserInfo());
@@ -318,7 +322,7 @@ public class UserController {
 
             if (deviceId == null || userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
                 log.warn("User {} attempts to access chat messages of unauthorized device {}", userInfo.getUsername(), deviceId);
-                throw new InsufficientAuthenticationException(deviceId);
+                throw new org.springframework.security.access.AccessDeniedException("Device access denied");
             } else {
                 log.debug("User {} requests last chat messages for device {}", userInfo.getUsername(), deviceId);
                 return mediaProcessor.chatLast(deviceId);
@@ -339,7 +343,7 @@ public class UserController {
             UserInfo userInfo = userPrincipal.getUserInfo();
             if (deviceId == null || userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
                 log.warn("User {} attempts to access chat messages of unauthorized device {}", userInfo.getUsername(), deviceId);
-                throw new InsufficientAuthenticationException(deviceId);
+                throw new org.springframework.security.access.AccessDeniedException("Device access denied");
             }
             return mediaProcessor.chatBefore(deviceId, mediaId);
         } else {
@@ -357,7 +361,7 @@ public class UserController {
             UserInfo userInfo = userPrincipal.getUserInfo();
             if (deviceId == null || userInfo.getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
                 log.warn("User {} attempts to access chat messages of unauthorized device {}", userInfo.getUsername(), deviceId);
-                throw new InsufficientAuthenticationException(deviceId);
+                throw new org.springframework.security.access.AccessDeniedException("Device access denied");
             }
             return mediaProcessor.chatAfter(deviceId, mediaId);
         } else {

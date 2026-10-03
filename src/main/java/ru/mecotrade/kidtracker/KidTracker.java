@@ -25,7 +25,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import ru.mecotrade.kidtracker.device.DeviceServer;
 import ru.mecotrade.kidtracker.processor.UserProcessor;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 @SpringBootApplication
 @EnableScheduling

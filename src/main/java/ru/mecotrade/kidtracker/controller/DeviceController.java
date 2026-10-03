@@ -53,7 +53,7 @@ import ru.mecotrade.kidtracker.processor.MediaProcessor;
 import ru.mecotrade.kidtracker.security.UserPrincipal;
 import ru.mecotrade.kidtracker.task.UserToken;
 
-import javax.annotation.security.RolesAllowed;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import static ru.mecotrade.kidtracker.util.ValidationUtils.*;
 
@@ -64,6 +64,9 @@ public class DeviceController {
 
     @Value("${kidtracker.device.confirmation.timeout.millis}")
     private long confirmationTimeout;
+
+    @Autowired
+    private ru.mecotrade.kidtracker.security.TokenAttemptLimiter tokenAttemptLimiter;
 
     @Autowired
     private DeviceProcessor deviceProcessor;
@@ -156,20 +159,21 @@ public class DeviceController {
         }
     }
 
-    @GetMapping("/execute/{token}")
+    @PostMapping("/execute/{token}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void execute(@PathVariable String deviceId, @PathVariable String token, Authentication authentication) {
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
             UserInfo userInfo = ((UserPrincipal) authentication.getPrincipal()).getUserInfo();
+            tokenAttemptLimiter.check(userInfo.getId());
             try {
                 deviceManager.execute(UserToken.of(userInfo.getId(), token), deviceId);
-                log.info("[{}] Token {} successfully executed by {}", deviceId, token, userInfo);
+                log.info("[{}] Confirmation executed by {}", deviceId, userInfo);
             } catch (Exception ex) {
-                log.error("[{}] Unable to execute token {} by {}", deviceId, token, userInfo, ex);
+                log.warn("[{}] Confirmation rejected for {}", deviceId, userInfo);
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY);
             }
         } else {
-            log.warn("[{}] Unauthorized request to execute token {}", deviceId, token);
+            log.warn("[{}] Unauthorized confirmation request", deviceId);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
     }
@@ -248,22 +252,22 @@ public class DeviceController {
         }
     }
 
-    @GetMapping("/off/alarm")
+    @PostMapping("/off/alarm")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void alarmOff(@PathVariable String deviceId) {
         log.info("[{}] Received alarm off request", deviceId);
         deviceManager.alarmOff(deviceId);
     }
 
-    @GetMapping("/off/notification")
+    @PostMapping("/off/notification")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void notificationOff(@PathVariable String deviceId) {
         log.info("[{}] Received notification off request", deviceId);
         deviceManager.notificationOff(deviceId);
     }
 
-    @RolesAllowed("ROLE_ADMIN")
-    @GetMapping("/command/{payload}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @PostMapping("/command/{payload}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void command(@PathVariable String deviceId, @PathVariable String payload) {
         log.info("[{}] Received payload '{}'", deviceId, payload);

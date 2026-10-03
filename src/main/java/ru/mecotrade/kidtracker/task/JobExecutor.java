@@ -28,7 +28,10 @@ public class JobExecutor {
 
     private final Map<UserToken, Temporal<Job>> jobs = new ConcurrentHashMap<>();
 
-    public void apply(UserToken token, Job job) {
+    public synchronized void apply(UserToken token, Job job) {
+        if (jobs.size() >= 10000 || jobs.keySet().stream().filter(t -> t.getUserId().equals(token.getUserId())).count() >= 20) {
+            throw new IllegalStateException("Pending confirmation capacity reached");
+        }
         if (jobs.putIfAbsent(token, Temporal.of(job)) != null) {
             throw new IllegalStateException("A confirmation with this token is already pending; retry");
         }

@@ -16,20 +16,17 @@
 package ru.mecotrade.kidtracker.security;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.web.filter.GenericFilterBean;
 import org.springframework.web.util.UriTemplate;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
 
@@ -37,8 +34,6 @@ import java.util.Map;
 public class UserDeviceFilter extends GenericFilterBean {
 
     private final static UriTemplate URI_TEMPLATE = new UriTemplate("/api/device/{deviceId}/{:.*}");
-
-    private final AuthenticationFailureHandler failureHandler = new SimpleUrlAuthenticationFailureHandler();
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
@@ -49,6 +44,11 @@ public class UserDeviceFilter extends GenericFilterBean {
         String uri = httpServletRequest.getRequestURI().substring(httpServletRequest.getContextPath().length());
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
+        if (uri.startsWith("/api/device/") && (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal))) {
+            httpServletResponse.sendError(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
 
             UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
@@ -58,7 +58,7 @@ public class UserDeviceFilter extends GenericFilterBean {
             String deviceId = uriParams.get("deviceId");
             if (deviceId != null && userPrincipal.getUserInfo().getKids().stream().noneMatch(k -> k.getDevice().getId().equals(deviceId))) {
                 log.warn("User {} attempts to access unauthorized device {} in request {}", userPrincipal.getUserInfo().getUsername(), deviceId, uri);
-                throw new InsufficientAuthenticationException(deviceId);
+                throw new org.springframework.security.access.AccessDeniedException("Device access denied");
             }
         }
 

@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import ru.mecotrade.kidtracker.dao.model.*;
-import javax.servlet.FilterChain;
+import jakarta.servlet.FilterChain;
 import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -31,7 +31,7 @@ class UserDeviceFilterTest {
         login(); FilterChain chain = mock(FilterChain.class);
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/tracker/api/device/9999999999/status");
         request.setContextPath("/tracker");
-        assertThrows(InsufficientAuthenticationException.class,
+        assertThrows(AccessDeniedException.class,
                 () -> new UserDeviceFilter().doFilter(request, new MockHttpServletResponse(), chain));
         verifyNoInteractions(chain);
     }

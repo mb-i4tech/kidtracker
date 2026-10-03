@@ -28,7 +28,7 @@ public class RawMessageErrorAttributes extends DefaultErrorAttributes {
     @Override
     public Map<String, Object> getErrorAttributes(WebRequest webRequest, ErrorAttributeOptions errorAttributeOptions) {
         Map<String, Object> errorAttributes = super.getErrorAttributes(webRequest, errorAttributeOptions);
-        Object message = webRequest.getAttribute("javax.servlet.error.message", 0);
+        Object message = webRequest.getAttribute("jakarta.servlet.error.message", 0);
         errorAttributes.put("message", message);
         return errorAttributes;
     }

@@ -16,16 +16,20 @@
 package ru.mecotrade.kidtracker.dao.model;
 
 import lombok.Data;
+import org.hibernate.annotations.JdbcTypeCode;
+import java.sql.Types;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Index;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import java.util.Date;
 
 @NoArgsConstructor
@@ -46,12 +50,16 @@ public class Message {
     }
 
     @Id
-    @GeneratedValue
+    // Preserve Hibernate 5 global sequence and increment; never reset existing IDs.
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "legacy_sequence")
+    @SequenceGenerator(name = "legacy_sequence", sequenceName = "hibernate_sequence", allocationSize = 1)
     private Long id;
 
     @CreationTimestamp
     private Date timestamp;
 
+    // Hibernate 5 persisted enum ordinals as INTEGER.
+    @JdbcTypeCode(Types.INTEGER)
     private Source source;
 
     private String manufacturer;

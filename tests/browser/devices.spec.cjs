@@ -17,6 +17,8 @@ async function setup(page,locale,config={publicHost:'watch.example.test',publicP
     window.requests=[];
     window.fetch=async(url,options)=>{
       requests.push({url,method:options&&options.method});
+      if(url==='/api/csrf') return {ok:true,json:async()=>({headerName:'X-CSRF-TOKEN',token:'fixture-csrf'})};
+      if(options && options.method==='POST' && options.headers['X-CSRF-TOKEN']!=='fixture-csrf') throw Error('Missing CSRF');
       let body=[];let status=200;
       if(url.endsWith('/config'))body=config;
       else if(url==='/api/user/kid'){status=202;body=null;}

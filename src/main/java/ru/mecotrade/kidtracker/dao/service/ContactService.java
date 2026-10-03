@@ -22,7 +22,7 @@ import ru.mecotrade.kidtracker.dao.repository.ContactRepository;
 import ru.mecotrade.kidtracker.model.Contact;
 import ru.mecotrade.kidtracker.model.ContactType;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;

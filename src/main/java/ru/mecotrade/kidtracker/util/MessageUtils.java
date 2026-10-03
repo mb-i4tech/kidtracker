@@ -30,7 +30,7 @@ import ru.mecotrade.kidtracker.model.Location;
 import ru.mecotrade.kidtracker.dao.model.Message;
 import ru.mecotrade.kidtracker.model.Temporal;
 
-import javax.xml.bind.DatatypeConverter;
+import java.util.HexFormat;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -140,7 +140,7 @@ public class MessageUtils {
 
     public static String toUtf16Hex(String payload) {
         byte[] bytes = payload.getBytes(StandardCharsets.UTF_16);
-        return DatatypeConverter.printHexBinary(Arrays.copyOfRange(bytes, 2, bytes.length));
+        return HexFormat.of().withUpperCase().formatHex(Arrays.copyOfRange(bytes, 2, bytes.length));
     }
 
     public static byte[] toBytes(Message message) {

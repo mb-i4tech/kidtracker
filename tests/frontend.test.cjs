@@ -31,3 +31,12 @@ test('bounded request aborts and releases UI',async()=>{
 test('204 has explicit success result without JSON parse',async()=>{
   let called=false;const h=load('util',{fetch:async()=>({ok:true,status:204})}); assert.equal(await h.api.fetchWithRedirect('/test',{}, {success:()=>called=true}),true);assert.equal(called,true);
 });
+test('unsafe requests obtain and send a session CSRF header',async()=>{
+  const calls=[];const h=load('util',{fetch:async(url,options)=>{calls.push({url,options});return url==='/api/csrf'?{ok:true,json:async()=>({headerName:'X-CSRF-TOKEN',token:'synthetic'})}:{ok:true,status:204};}});
+  await h.api.fetchWithRedirect('/api/user/info',{method:'PUT',headers:{'Content-Type':'application/json'}});
+  assert.equal(calls[0].url,'/api/csrf');assert.equal(calls[1].options.headers['X-CSRF-TOKEN'],'synthetic');assert.equal(calls[1].options.credentials,'same-origin');
+});
+test('CSRF endpoint failure prevents mutation, rather than retrying insecurely',async()=>{
+  let mutations=0;const h=load('util',{fetch:async url=>{if(url!='/api/csrf')mutations++;return {ok:false};}});
+  await h.api.fetchWithRedirect('/api/user/info',{method:'PUT'});assert.equal(mutations,0);assert.equal(h.errors.length,1);
+});

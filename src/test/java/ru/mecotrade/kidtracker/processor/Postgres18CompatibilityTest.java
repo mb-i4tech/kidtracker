@@ -11,7 +11,7 @@ import ru.mecotrade.kidtracker.dao.model.UserInfo;
 import ru.mecotrade.kidtracker.dao.model.DeviceInfo;
 import ru.mecotrade.kidtracker.dao.model.KidInfo;
 import ru.mecotrade.kidtracker.dao.model.Assignment;
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -35,7 +35,7 @@ class Postgres18CompatibilityTest {
         registry.add("spring.datasource.username", () -> "kidtracker_test");
         registry.add("spring.datasource.password", () -> "disposable-test-only");
         registry.add("spring.datasource.driverClassName", () -> "org.postgresql.Driver");
-        registry.add("spring.jpa.database-platform", () -> "org.hibernate.dialect.PostgreSQL10Dialect");
+        registry.add("spring.jpa.database-platform", () -> "org.hibernate.dialect.PostgreSQLDialect");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
     }
     @Test void quotedUserAndOwnershipMappingRoundTrip() {

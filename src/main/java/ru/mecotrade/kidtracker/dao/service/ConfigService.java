@@ -21,7 +21,7 @@ import ru.mecotrade.kidtracker.dao.model.ConfigRecord;
 import ru.mecotrade.kidtracker.dao.repository.ConfigRepository;
 import ru.mecotrade.kidtracker.model.Config;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.Collection;
 import java.util.Optional;
 
