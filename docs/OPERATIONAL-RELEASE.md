@@ -4,7 +4,7 @@ Builds on security PR #2. Production rollout requires the reviewed SHA, passing 
 
 ## Changes
 
-- Login submissions bounded by normalized account (10/minute) and direct peer (60/minute); memory bounded, 429/Retry-After, no forwarded-header trust. Short windows do not modify passwords, persistent accounts or active sessions. Shared proxies share the peer budget; a distributed limiter is needed before scaling.
+- Login submissions bounded by normalized account (10/minute) and direct peer (60/minute); memory bounded, 429/Retry-After, no forwarded-header trust. Short windows do not modify passwords, persistent accounts or active sessions. Forwarded-header strategy defaults to none; deployment must not override it with unrestricted framework header handling. Shared proxies share the peer budget; a distributed limiter is needed before scaling.
 - Device parser bounded by four-hex-digit protocol payload length and bounded headers, framing/deadline checks. Device connections limited to 128, idle sockets timeout, notification queue bounded. Real hardware soak remains necessary; caps are appropriate to a small private installation, not a claim of fleet sizing.
 - Native audio conversion uses file-only FFmpeg protocols, no shell, two slots, one codec thread, 30-second hard timeout, output cap, unique temporary files and cleanup. Native parser is not an OS sandbox; ongoing bundled FFmpeg updates remain necessary.
 - Browser executable/style dependencies served locally from lockfile-pinned packages. `npm run build` emits `/vendor/manifest.json` containing versions and SHA256 hashes. No runtime CDN JS/CSS required. Map tiles remain an explicit external map dependency, not executable code.
