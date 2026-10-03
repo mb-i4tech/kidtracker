@@ -6,14 +6,15 @@ COPY .eslintrc.json ./
 COPY src/main/js ./src/main/js
 RUN mkdir -p src/main/resources/static/js && npm run lint && npm run build
 
-FROM maven:3.8.8-eclipse-temurin-8 AS backend
+FROM maven:3.9.11-eclipse-temurin-21 AS backend
 WORKDIR /build
 COPY pom.xml ./
 COPY src ./src
 COPY --from=frontend /build/src/main/resources/static/js/index.js ./src/main/resources/static/js/index.js
 RUN mvn -B verify
 
-FROM eclipse-temurin:8-jre
+FROM eclipse-temurin:21-jre-jammy
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 RUN mkdir -p /app/data /app/logs /app/media
 COPY --from=backend /build/target/kidtracker*.jar /app/kidtracker.jar

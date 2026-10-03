@@ -37,7 +37,7 @@ import ru.mecotrade.kidtracker.security.UserPrincipal;
 import ru.mecotrade.kidtracker.task.JobExecutor;
 import ru.mecotrade.kidtracker.util.ThumbUtils;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;

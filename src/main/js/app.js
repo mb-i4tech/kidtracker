@@ -18,7 +18,7 @@
 
 const moment = require('moment/min/moment-with-locales.min.js');
 const i18n = require('./i18n.js');
-const {showInputToken, fetchWithRedirect, initCommand, initConfig, initCheck} = require('./util.js');
+const {csrfHeaders, showInputToken, fetchWithRedirect, initCommand, initConfig, initCheck} = require('./util.js');
 const createSliderControl = require('./slidercontrol.js');
 const {showWarning, showError} = require('./notification.js');
 const {initHistory, showHistory} = require('./history.js');
@@ -159,10 +159,10 @@ function updateKidPopup(kid, position, snapshot, midnightSnapshot, online, alarm
             setView(kid);
         }
         if (alarm) {
-            await fetchWithRedirect(`/api/device/${kid.deviceId}/off/alarm`);
+            await fetchWithRedirect(`/api/device/${kid.deviceId}/off/alarm`, {method: 'POST'});
         }
         if (notification) {
-            await fetchWithRedirect(`/api/device/${kid.deviceId}/off/notification`);
+            await fetchWithRedirect(`/api/device/${kid.deviceId}/off/notification`, {method: 'POST'});
             await showChat(kid.deviceId, stompClient);
         }
     });
@@ -290,6 +290,10 @@ function initMap() {
 async function initNavbar() {
 
     moment.locale(i18n.lang);
+    $('#user-logout').on('click', async event => {
+        event.preventDefault();
+        await fetchWithRedirect('/logout', {method: 'POST'}, {success: () => window.location.assign('/login?logout')});
+    });
 
     $('h5.modal-title').each(function (i) {
         i18n.apply($(this));
@@ -341,7 +345,7 @@ async function initNavbar() {
     $chat.off('click');
     $chat.click(async () => {
         const deviceId = $select.children('option:selected').val()
-        await fetchWithRedirect(`/api/device/${deviceId}/off/notification`);
+        await fetchWithRedirect(`/api/device/${deviceId}/off/notification`, {method: 'POST'});
         requestKidReports();
         chatShown = true;
         await showChat(deviceId, stompClient);
@@ -576,7 +580,8 @@ async function showNavbar() {
     await updateMidnightSnapshot();
 }
 
-function connectStompClient() {
+async function connectStompClient() {
+    const headers = await csrfHeaders();
     return new Promise(resolve => {
         const client = Stomp.over(new SockJS('/device'));
         client.debug = () => {};
@@ -590,7 +595,7 @@ function connectStompClient() {
             resolve(null);
         }
         const timer = setTimeout(failed, 15000);
-        client.connect({}, () => {
+        client.connect(headers, () => {
             if (settled) { client.disconnect(); return; }
             settled = true;
             clearTimeout(timer);

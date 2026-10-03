@@ -30,7 +30,7 @@ import ws.schild.jave.Encoder;
 import ws.schild.jave.encode.EncodingAttributes;
 import ws.schild.jave.MultimediaObject;
 
-import javax.xml.bind.DatatypeConverter;
+import java.util.HexFormat;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -187,7 +187,7 @@ public class MediaProcessor {
                 byte[] payload = Base64.getDecoder().decode(message.getPayload().getBytes());
                 byte[] image = toMediaBytes(Arrays.copyOfRange(payload, IMG_SKIP_BYTES, payload.length));
 
-                String magic = DatatypeConverter.printHexBinary(Arrays.copyOfRange(image, 0, 4)).toLowerCase();
+                String magic = HexFormat.of().withUpperCase().formatHex(Arrays.copyOfRange(image, 0, 4)).toLowerCase();
                 String contentType = toContentType(magic);
 
                 if (contentType != null) {

@@ -29,7 +29,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry
                 .addEndpoint("/device")
+                .addInterceptors(new ru.mecotrade.kidtracker.security.CsrfHandshakeInterceptor())
                 .withSockJS();
+    }
+
+    @Override
+    public void configureClientInboundChannel(org.springframework.messaging.simp.config.ChannelRegistration registration) {
+        registration.interceptors(new ru.mecotrade.kidtracker.security.StompSecurityInterceptor());
     }
 
     @Override

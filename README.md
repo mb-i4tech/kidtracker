@@ -1,5 +1,7 @@
 # Kid Tracker — maintained stabilization fork
 
+**Security modernization:** [Java21/Spring upgrade, CSRF, scanner evidence and PostgreSQL rehearsal](docs/SECURITY-MILESTONE.md).
+
 **Start here:** [product build, tests, safe deployment and upgrade limitations](docs/PRODUCT-MILESTONE.md).
 
 Fork of `mayask/kidtracker`, originally `mecotrade/kidtracker`; original Apache-2.0 attribution is preserved. The historical instructions below are upstream reference, not a safe database upgrade recipe. Use `Dockerfile.product` for the maintained milestone.

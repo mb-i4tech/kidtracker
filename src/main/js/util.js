@@ -19,6 +19,19 @@
 const i18n = require('./i18n.js');
 const {showWarning, showError} = require('./notification.js');
 
+// Session token comes from Spring, never from local storage or URL parameters.
+async function csrfHeaders() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+        const response = await fetch('/api/csrf', {credentials: 'same-origin', signal: controller.signal});
+        if (!response.ok) throw new Error('Unable to obtain security token. Reload and sign in again.');
+        const csrf = await response.json();
+        if (!csrf.headerName || !csrf.token) throw new Error('Invalid security token response.');
+        return {[csrf.headerName]: csrf.token};
+    } finally { clearTimeout(timer); }
+}
+
 // One request contract: failed requests return undefined, never invoke success,
 // and always release the blocking overlay. 202 completes only after token proof.
 async function fetchWithRedirect(url, fetchOptions, options) {
@@ -29,7 +42,11 @@ async function fetchWithRedirect(url, fetchOptions, options) {
     let response;
     let body;
     try {
-        response = await fetch(url, Object.assign({}, fetchOptions, {signal: controller.signal}));
+        const request = Object.assign({credentials: 'same-origin'}, fetchOptions, {signal: controller.signal});
+        if (!['GET', 'HEAD', 'OPTIONS'].includes((request.method || 'GET').toUpperCase())) {
+            request.headers = Object.assign({}, request.headers, await csrfHeaders());
+        }
+        response = await fetch(url, request);
         if (response.redirected) {
             window.location.assign(response.url);
             return;
@@ -200,7 +217,7 @@ async function showInputToken(deviceId) {
                 const token = $inputToken.val().trim();
                 if (!token) { showError(i18n.translate("Token should not be empty.")); return; }
                 $executeToken.prop("disabled", true);
-                await fetchWithRedirect(deviceId ? `/api/device/${deviceId}/execute/${encodeURIComponent(token)}` : `/api/user/token/${encodeURIComponent(token)}`, {},
+                await fetchWithRedirect(deviceId ? `/api/device/${deviceId}/execute/${encodeURIComponent(token)}` : `/api/user/token/${encodeURIComponent(token)}`, {method: 'POST'},
                 {
                     error: message => {
                         showError(i18n.translate(message || 'Command is not completed'));
@@ -221,4 +238,4 @@ async function showInputToken(deviceId) {
     });
 }
 
-module.exports = {showInputToken, fetchWithRedirect, initCommand, initConfig, initCheck};
+module.exports = {csrfHeaders, showInputToken, fetchWithRedirect, initCommand, initConfig, initCheck};
